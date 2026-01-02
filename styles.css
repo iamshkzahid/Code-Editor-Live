@@ -31,8 +31,8 @@ body{
 
 header{
      padding: 20px;
-     background: linear-gradient(90deg, rgba(96, 165, 250, .15) rgba(125, 211, 252, 0.1));
-     border-bottom: 1px solid rgba(255,255,255,0.06);
+     background: linear-gradient(90deg, rgba(96, 165, 250, .15) rgba(125, 211, 252, .1));
+     border-bottom: 1px solid rgba(255,255,255, .06);
 
 }
 
