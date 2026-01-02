@@ -292,6 +292,8 @@ label{
 .editor-controls .select{
      padding: 5px 10px;
      font-size: 13px;
-     height: 32px;
+     height: 29px;
 }
-
+.align{
+     margin-top: 15px;
+}
