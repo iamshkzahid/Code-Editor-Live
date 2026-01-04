@@ -16,3 +16,6 @@ A lightweight browser-based code editor for HTML, CSS, and JavaScript with live 
 - CSS
 - JavaScript
 - Ace Editor
+
+  ## Live Preview
+  https://iamshkzahid.github.io/Code-Editor-Live/
