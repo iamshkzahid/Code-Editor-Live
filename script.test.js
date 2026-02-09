@@ -78,16 +78,20 @@ class MockEditor {
     constructor(id) {
         this.id = id;
         this._value = '';
+        this.initialConfig = {};
+        this.options = {};
+        this.wrapMode = false;
+        this.commandsList = [];
         this.session = {
-            setUseWrapMode: () => {}
+            setUseWrapMode: (val) => { this.wrapMode = val; }
         };
         this.commands = {
-            addCommand: () => {}
+            addCommand: (cmd) => { this.commandsList.push(cmd); }
         };
         this._listeners = {};
     }
 
-    setOptions() {}
+    setOptions(opts) { Object.assign(this.options, opts); }
     setValue(val) { this._value = val; }
     getValue() { return this._value; }
     setTheme() {}
@@ -101,12 +105,8 @@ class MockEditor {
 }
 
 // Registry to store persistent mock elements by selector
+// This is used for the default context
 const elementRegistry = new Map();
-
-// Helper to clear registry between tests
-function clearRegistry() {
-    elementRegistry.clear();
-}
 
 function getMockElement(selector) {
     if (!elementRegistry.has(selector)) {
@@ -119,23 +119,63 @@ function getMockElement(selector) {
     return elementRegistry.get(selector);
 }
 
-// Setup Sandbox Environment
-const sandbox = {
-    document: {
-        querySelector: (selector) => {
-            return getMockElement(selector);
-        },
-        querySelectorAll: (selector) => {
-            // Special handling for these selectors to return array of mocks
-            if (selector.includes('.editor-wrap') || selector.includes('.tab')) {
-                const panes = ['html', 'css', 'js'];
-                return panes.map(p => {
-                    const el = new MockElement(); // Don't persist these for now as they are usually iterated
-                    el.dataset.pane = p;
-                    return el;
-                });
+// Helper function to create a sandbox environment
+function createSandbox(options = {}) {
+    const { missingSelectors = [] } = options;
+    const localRegistry = new Map();
+
+    const getElement = (selector) => {
+        if (missingSelectors.includes(selector)) return null;
+
+        // Use global registry if no options provided to keep existing tests working
+        // Or create a fresh one if we want isolation. For now, we'll use a mix:
+        // If specific options are provided, use local registry. Otherwise global.
+        // Actually, to support the refactor, let's just make a new one every time unless we want persistence?
+        // The existing tests rely on `getMockElement` (global). Let's keep that for the default context.
+        if (Object.keys(options).length === 0) {
+             return getMockElement(selector);
+        }
+
+        if (!localRegistry.has(selector)) {
+            const el = new MockElement();
+            if (selector.startsWith('#')) {
+                el.id = selector.slice(1);
             }
-            return [];
+            localRegistry.set(selector, el);
+        }
+        return localRegistry.get(selector);
+    };
+
+    return {
+        document: {
+            querySelector: (selector) => {
+                return getElement(selector);
+            },
+            querySelectorAll: (selector) => {
+                // Special handling for these selectors to return array of mocks
+                if (selector.includes('.editor-wrap') || selector.includes('.tab')) {
+                    const panes = ['html', 'css', 'js'];
+                    return panes.map(p => {
+                        const el = new MockElement();
+                        el.dataset.pane = p;
+                        return el;
+                    });
+                }
+                return [];
+            },
+            createElement: (tag) => new MockElement(tag),
+            getElementById: (id) => getElement('#' + id),
+        },
+        window: {
+            addEventListener: () => {},
+            open: () => ({
+                document: {
+                    open: () => {},
+                    write: () => {},
+                    close: () => {}
+                }
+            }),
+            location: { reload: () => {} }
         },
         createElement: (tag) => new MockElement(tag),
         createDocumentFragment: () => new MockElement('document-fragment'),
@@ -149,43 +189,48 @@ const sandbox = {
                 write: () => {},
                 close: () => {}
             }
-        }),
-        location: { reload: () => {} }
-    },
-    ace: {
-        edit: (id, options) => {
-             const editor = new MockEditor(id);
-             // Store editor in sandbox if needed, but script.js assigns them to vars
-             return editor;
-        }
-    },
-    localStorage: {
-        _store: {},
-        getItem: (key) => sandbox.localStorage._store[key] || null,
-        setItem: (key, val) => sandbox.localStorage._store[key] = String(val),
-        removeItem: (key) => delete sandbox.localStorage._store[key],
-        clear: () => sandbox.localStorage._store = {}
-    },
-    Blob: class { constructor(content) { this.content = content; } },
-    URL: { createObjectURL: () => 'blob:mock-url' },
-    console: {
-        log: () => {}, // suppress logs during tests
-        error: console.error,
-        warn: console.warn
-    },
-    setTimeout: setTimeout,
-    clearTimeout: clearTimeout,
-    requestAnimationFrame: (cb) => cb(),
-    Date: Date
-};
+        },
+        localStorage: {
+            _store: {},
+            getItem: (key) => this._store ? this._store[key] : null, // Context issue with 'this', fix below
+            setItem: (key, val) => { if(!this._store) this._store={}; this._store[key] = String(val); },
+            removeItem: (key) => { if(this._store) delete this._store[key]; },
+            clear: () => { this._store = {}; }
+        },
+        Blob: class { constructor(content) { this.content = content; } },
+        URL: { createObjectURL: () => 'blob:mock-url' },
+        console: {
+            log: () => {},
+            error: console.error,
+            warn: console.warn
+        },
+        setTimeout: setTimeout,
+        clearTimeout: clearTimeout,
+        requestAnimationFrame: (cb) => cb(),
+        Date: Date
+    };
+}
 
-// initialize context
-const context = vm.createContext(sandbox);
+// Fix localStorage binding in createSandbox
+function createSandboxCorrected(options = {}) {
+    const sandbox = createSandbox(options);
+    const store = {};
+    sandbox.localStorage = {
+        getItem: (key) => store[key] || null,
+        setItem: (key, val) => store[key] = String(val),
+        removeItem: (key) => delete store[key],
+        clear: () => { for (const key in store) delete store[key]; }
+    };
+    return sandbox;
+}
 
-// Run the scripts
+// Initialize default context (global, for backward compatibility with existing tests)
+const defaultSandbox = createSandboxCorrected();
+const defaultContext = vm.createContext(defaultSandbox);
+
 try {
-    vm.runInContext(utilsCode, context);
-    vm.runInContext(scriptCode, context);
+    vm.runInContext(utilsCode, defaultContext);
+    vm.runInContext(scriptCode, defaultContext);
 } catch (e) {
     console.error("Error executing script.js:", e);
     process.exit(1);
@@ -195,11 +240,11 @@ try {
 
 describe('script.js - buildwebSrcdoc', () => {
 
-    // Access variables from the sandbox using runInContext because 'const' vars are not on sandbox object
-    const getEdHtml = () => vm.runInContext('ed_html', context);
-    const getEdCss = () => vm.runInContext('ed_css', context);
-    const getEdJs = () => vm.runInContext('ed_js', context);
-    const runBuildWebSrcDoc = (withTests) => vm.runInContext(`buildwebSrcdoc(${withTests})`, context);
+    // Access variables from the sandbox using runInContext
+    const getEdHtml = () => vm.runInContext('ed_html', defaultContext);
+    const getEdCss = () => vm.runInContext('ed_css', defaultContext);
+    const getEdJs = () => vm.runInContext('ed_js', defaultContext);
+    const runBuildWebSrcDoc = (withTests) => vm.runInContext(`buildwebSrcdoc(${withTests})`, defaultContext);
 
     // Helper to get element from registry (wrapper for querySelector)
     const $ = (sel) => getMockElement(sel);
@@ -265,5 +310,72 @@ describe('script.js - buildwebSrcdoc', () => {
 
          assert.ok(result.includes('try{'), 'JS should be inside try block');
          assert.ok(result.includes('catch(e)'), 'JS should include catch block');
+    });
+
+    // NEW TESTS
+    test('should ignore whitespace-only test content', () => {
+        $('#testArea').value = '   \n   ';
+        const result = runBuildWebSrcDoc(true);
+        assert.ok(!result.includes('/* tests */'), 'Output should NOT include test marker for empty/whitespace content');
+    });
+
+    test('should trim test content', () => {
+        const code = 'console.log(1);';
+        $('#testArea').value = `  ${code}  `;
+        const result = runBuildWebSrcDoc(true);
+        assert.ok(result.includes(code), 'Output should contain trimmed code');
+        // We can't easily check for exact string match of the whole block without parsing, but ensuring code is present is good.
+    });
+});
+
+describe('script.js - buildwebSrcdoc (Edge Cases)', () => {
+    test('should handle missing #testArea element', () => {
+        // Create a sandbox where #testArea is missing
+        const sandbox = createSandboxCorrected({ missingSelectors: ['#testArea'] });
+        const context = vm.createContext(sandbox);
+
+        // Run script
+        vm.runInContext(utilsCode, context);
+        vm.runInContext(scriptCode, context);
+
+        // Run function
+        const result = vm.runInContext('buildwebSrcdoc(true)', context);
+
+        // Assertions
+        assert.ok(result.includes('<!DOCTYPE html>'), 'Should generate valid HTML even if testArea is missing');
+        assert.ok(!result.includes('/* tests */'), 'Should not try to include tests if testArea is missing');
+    });
+});
+
+describe('script.js - saveProject', () => {
+    const $ = (sel) => getMockElement(sel);
+    const runSaveProject = () => vm.runInContext('saveProject()', context);
+
+    // Save original setItem to restore after test
+    const originalSetItem = sandbox.localStorage.setItem;
+
+    afterEach(() => {
+        sandbox.localStorage.setItem = originalSetItem;
+        // Clear output after each test
+        const output = $('#output');
+        output.children = [];
+        output.innerHTML = '';
+        output.scrollTop = 0;
+    });
+
+    test('should log error when localStorage.setItem throws', () => {
+        // Mock localStorage.setItem to throw an error
+        sandbox.localStorage.setItem = (key, val) => {
+            throw new Error("QuotaExceededError");
+        };
+
+        runSaveProject();
+
+        const output = $('#output');
+        const lastLog = output.children[output.children.length - 1];
+
+        assert.ok(lastLog, 'Output should have a log entry');
+        assert.ok(lastLog.innerHTML.includes('Unable to save'), 'Log should contain error message prefix');
+        assert.ok(lastLog.innerHTML.includes('QuotaExceededError'), 'Log should contain specific error message');
     });
 });
