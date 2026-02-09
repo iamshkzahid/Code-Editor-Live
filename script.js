@@ -5,14 +5,6 @@ const out = $('#output');
 const preview = $("#preview");
 const STORAGE_KEY = "Zahid's-codelab-web";
 
-const escapeHtml = s => 
-     String(s).replace(/[&<>"]/g, c => ({
-          '&':"&amp;",
-          '<':"&lt;",
-          '>':"&gt;",
-          '"':"&quot;"
-     }[c]
-));
 
 window.addEventListener("error", (event) => {
      log(`Runtime Error: ${event.message}`, "error");
