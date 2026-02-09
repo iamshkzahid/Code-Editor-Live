@@ -73,16 +73,20 @@ class MockEditor {
     constructor(id) {
         this.id = id;
         this._value = '';
+        this.initialConfig = {};
+        this.options = {};
+        this.wrapMode = false;
+        this.commandsList = [];
         this.session = {
-            setUseWrapMode: () => {}
+            setUseWrapMode: (val) => { this.wrapMode = val; }
         };
         this.commands = {
-            addCommand: () => {}
+            addCommand: (cmd) => { this.commandsList.push(cmd); }
         };
         this._listeners = {};
     }
 
-    setOptions() {}
+    setOptions(opts) { Object.assign(this.options, opts); }
     setValue(val) { this._value = val; }
     getValue() { return this._value; }
     setTheme() {}
@@ -149,6 +153,7 @@ const sandbox = {
     ace: {
         edit: (id, options) => {
              const editor = new MockEditor(id);
+             editor.initialConfig = options;
              // Store editor in sandbox if needed, but script.js assigns them to vars
              return editor;
         }
