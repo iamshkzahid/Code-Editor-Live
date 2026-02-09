@@ -14,17 +14,37 @@ window.addEventListener("error", (event) => {
 });
 
 
-function log(msg, type='info'){
-     const color = type === "error" ? 'var(--err)' : type === "warn" ? "var(--warn)" : "var(--brand)";
+const logQueue = [];
+let isLogRenderScheduled = false;
 
-     const time = new Date().toLocaleTimeString();
+function flushLogs() {
+     isLogRenderScheduled = false;
+     if (logQueue.length === 0) {
+          return;
+     }
 
-     const line = document.createElement("div");
+     const fragment = document.createDocumentFragment();
+     const batch = logQueue.splice(0, logQueue.length);
 
-     line.innerHTML = `<span style="color:${color}">[${time}]</span> ${escapeHtml(msg)}`;
+     batch.forEach(({msg, type, time}) => {
+          const color = type === "error" ? 'var(--err)' : type === "warn" ? "var(--warn)" : "var(--brand)";
+          const line = document.createElement("div");
+          line.innerHTML = `<span style="color:${color}">[${time}]</span> ${escapeHtml(msg)}`;
+          fragment.appendChild(line);
+     });
 
-     out.appendChild(line);
+     out.appendChild(fragment);
      out.scrollTop = out.scrollHeight;
+}
+
+function log(msg, type='info'){
+     const time = new Date().toLocaleTimeString();
+     logQueue.push({msg, type, time});
+
+     if (!isLogRenderScheduled) {
+          isLogRenderScheduled = true;
+          requestAnimationFrame(flushLogs);
+     }
 }
 
 function clearOut(){

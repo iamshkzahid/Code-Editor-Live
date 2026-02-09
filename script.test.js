@@ -43,7 +43,12 @@ class MockElement {
     }
 
     appendChild(child) {
-        this.children.push(child);
+        if (child.tagName === 'DOCUMENT-FRAGMENT') {
+             this.children.push(...child.children);
+             child.children = [];
+        } else {
+             this.children.push(child);
+        }
     }
 
     setAttribute(name, value) {
@@ -172,10 +177,17 @@ function createSandbox(options = {}) {
             }),
             location: { reload: () => {} }
         },
-        ace: {
-            edit: (id, options) => {
-                 const editor = new MockEditor(id);
-                 return editor;
+        createElement: (tag) => new MockElement(tag),
+        createDocumentFragment: () => new MockElement('document-fragment'),
+        getElementById: (id) => getMockElement('#' + id),
+    },
+    window: {
+        addEventListener: () => {},
+        open: () => ({
+            document: {
+                open: () => {},
+                write: () => {},
+                close: () => {}
             }
         },
         localStorage: {
