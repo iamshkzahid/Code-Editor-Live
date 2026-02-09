@@ -245,12 +245,9 @@ $("#runTests")?.addEventListener("click", () => runWeb(true));
 
 $("#openPreview")?.addEventListener("click", () => {
      const src = buildwebSrcdoc(false);
-
-     const w = window.open("about:blank");
-
-     w.document.open();
-     w.document.write(src);
-     w.document.close(); 
+     const blob = new Blob([src], {type: "text/html"});
+     const url = URL.createObjectURL(blob);
+     window.open(url);
 });
 
 let autoRunTimer = null;
