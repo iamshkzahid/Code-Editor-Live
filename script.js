@@ -146,6 +146,7 @@ applyFontSize();
 const TAB_ORDER = ["html", "css", "js"];
 
 const wraps = Object.fromEntries($$("#webEditors .editor-wrap").map(w => [w.dataset.pane, w]));
+const tabs = $$("#webTabs .tab");
 
 const editors = {
      html: ed_html,
@@ -154,7 +155,7 @@ const editors = {
 };
 
 function activePane(){
-     const t = $("#webTabs .tab.active");
+     const t = tabs.find(t => t.classList.contains("active"));
      return t ? t.dataset.pane : "html";
 }
 
@@ -164,7 +165,7 @@ function showPane(name) {
                wraps[k].hidden = (k !== name);
           }})
 
-          $$("#webTabs .tab").forEach(t => {
+          tabs.forEach(t => {
                const on = t.dataset.pane === name;
                t.classList.toggle("active", on);
                t.setAttribute("aria-selected", on);
