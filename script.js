@@ -7,10 +7,6 @@ const STORAGE_PROJECT_KEY = "Zahid's-codelab-web";
 const STORAGE_THEME_KEY = "editorTheme";
 const STORAGE_FONT_SIZE_KEY = "editorFontSize";
 
-const MIN_FONT_SIZE = 12;
-const MAX_FONT_SIZE = 26;
-const DEFAULT_FONT_SIZE = 17;
-
 
 window.addEventListener("error", (event) => {
      log(`Runtime Error: ${event.message}`, "error");
@@ -40,7 +36,7 @@ function makeEditor(id, mode) {
      
      const ed = ace.edit(id, {
           theme: "ace/theme/dracula",
-          mode, tabSize: 2, useSoftTabs: true, showPrintMargin: false, wrap: true, fontSize: DEFAULT_FONT_SIZE + "px"
+          mode, tabSize: 2, useSoftTabs: true, showPrintMargin: false, wrap: true, fontSize: "17px"
      });
 
      ed.setOptions({
@@ -104,40 +100,46 @@ if (themeSelect) {
 
 
 function setEditorFontSize(size) {
-     const sizePx = size + "px";
-     ed_html.setFontSize(sizePx);
-     ed_css.setFontSize(sizePx);
-     ed_js.setFontSize(sizePx);
+     ed_html.setFontSize(size);
+     ed_css.setFontSize(size);
+     ed_js.setFontSize(size);
      localStorage.setItem(STORAGE_FONT_SIZE_KEY, size);
 }
 
+// Restore saved font size
+const savedFontSize = localStorage.getItem(STORAGE_FONT_SIZE_KEY) || "17px";
+setEditorFontSize(savedFontSize);
+
 let currentFontSize = parseInt(
-     localStorage.getItem(STORAGE_FONT_SIZE_KEY) || DEFAULT_FONT_SIZE,
+     localStorage.getItem(STORAGE_FONT_SIZE_KEY) || "17",
      10
 );
 
 function applyFontSize() {
-     setEditorFontSize(currentFontSize);
+     const size = `${currentFontSize}px`;
+     setEditorFontSize(size);
 }
-
-// Apply on startup
-applyFontSize();
 
 // Increase font
 $("#fontPlus")?.addEventListener("click", () => {
-     if (currentFontSize < MAX_FONT_SIZE) {
+     if (currentFontSize < 26) {
           currentFontSize++;
+          localStorage.setItem(STORAGE_FONT_SIZE_KEY, currentFontSize);
           applyFontSize();
      }
 });
 
 // Decrease font
 $("#fontMinus")?.addEventListener("click", () => {
-     if (currentFontSize > MIN_FONT_SIZE) {
+     if (currentFontSize > 12) {
           currentFontSize--;
+          localStorage.setItem(STORAGE_FONT_SIZE_KEY, currentFontSize);
           applyFontSize();
      }
 });
+
+// Apply on startup
+applyFontSize();
 
 
 
