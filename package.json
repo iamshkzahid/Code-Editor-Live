@@ -1,0 +1,21 @@
+{
+  "name": "app",
+  "version": "1.0.0",
+  "description": "A browser-based HTML, CSS, and JavaScript editor built for quick experiments, learning, and live preview—no setup required.",
+  "main": "script.js",
+  "scripts": {
+    "test": "node --test utils.test.js"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/iamshkzahid/Code-Editor-Live.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "commonjs",
+  "bugs": {
+    "url": "https://github.com/iamshkzahid/Code-Editor-Live/issues"
+  },
+  "homepage": "https://github.com/iamshkzahid/Code-Editor-Live#readme"
+}

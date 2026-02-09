@@ -7,14 +7,6 @@ const STORAGE_PROJECT_KEY = "Zahid's-codelab-web";
 const STORAGE_THEME_KEY = "editorTheme";
 const STORAGE_FONT_SIZE_KEY = "editorFontSize";
 
-const escapeHtml = s => 
-     String(s).replace(/[&<>"]/g, c => ({
-          '&':"&amp;",
-          '<':"&lt;",
-          '>':"&gt;",
-          '"':"&quot;"
-     }[c]
-));
 
 window.addEventListener("error", (event) => {
      log(`Runtime Error: ${event.message}`, "error");
