@@ -3,7 +3,9 @@ const $ = s => document.querySelector(s);
 const $$ = s => Array.from(document.querySelectorAll(s));
 const out = $('#output');
 const preview = $("#preview");
-const STORAGE_KEY = "Zahid's-codelab-web";
+const STORAGE_PROJECT_KEY = "Zahid's-codelab-web";
+const STORAGE_THEME_KEY = "editorTheme";
+const STORAGE_FONT_SIZE_KEY = "editorFontSize";
 
 const escapeHtml = s => 
      String(s).replace(/[&<>"]/g, c => ({
@@ -86,11 +88,11 @@ function setTheme(themeName) {
      ed_html.setTheme(themePath);
      ed_css.setTheme(themePath);
      ed_js.setTheme(themePath);
-     localStorage.setItem("editorTheme", themeName);
+     localStorage.setItem(STORAGE_THEME_KEY, themeName);
 }
 
 // Restore saved theme
-const savedTheme = localStorage.getItem("editorTheme") || "dracula";
+const savedTheme = localStorage.getItem(STORAGE_THEME_KEY) || "dracula";
 setTheme(savedTheme);
 
 // Theme selector wiring
@@ -109,15 +111,15 @@ function setEditorFontSize(size) {
      ed_html.setFontSize(size);
      ed_css.setFontSize(size);
      ed_js.setFontSize(size);
-     localStorage.setItem("editorFontSize", size);
+     localStorage.setItem(STORAGE_FONT_SIZE_KEY, size);
 }
 
 // Restore saved font size
-const savedFontSize = localStorage.getItem("editorFontSize") || "17px";
+const savedFontSize = localStorage.getItem(STORAGE_FONT_SIZE_KEY) || "17px";
 setEditorFontSize(savedFontSize);
 
 let currentFontSize = parseInt(
-     localStorage.getItem("editorFontSize") || "17",
+     localStorage.getItem(STORAGE_FONT_SIZE_KEY) || "17",
      10
 );
 
@@ -130,7 +132,7 @@ function applyFontSize() {
 $("#fontPlus")?.addEventListener("click", () => {
      if (currentFontSize < 26) {
           currentFontSize++;
-          localStorage.setItem("editorFontSize", currentFontSize);
+          localStorage.setItem(STORAGE_FONT_SIZE_KEY, currentFontSize);
           applyFontSize();
      }
 });
@@ -139,7 +141,7 @@ $("#fontPlus")?.addEventListener("click", () => {
 $("#fontMinus")?.addEventListener("click", () => {
      if (currentFontSize > 12) {
           currentFontSize--;
-          localStorage.setItem("editorFontSize", currentFontSize);
+          localStorage.setItem(STORAGE_FONT_SIZE_KEY, currentFontSize);
           applyFontSize();
      }
 });
@@ -323,7 +325,7 @@ console.log('Hello from JavaScript!');`, -1);
 function saveProject() {
      try{
           const data = JSON.stringify(projectJSON(), null, 2);
-          localStorage.setItem(STORAGE_KEY, data);
+          localStorage.setItem(STORAGE_PROJECT_KEY, data);
           const blob = new Blob([data], {type: "application/json"});
           const a = document.createElement("a");
           a.href = URL.createObjectURL(blob);
@@ -353,7 +355,7 @@ function initProject() {
      let cache = null;
 
      try {
-          cache = JSON.parse(localStorage.getItem(STORAGE_KEY));
+          cache = JSON.parse(localStorage.getItem(STORAGE_PROJECT_KEY));
      } catch (e) {
           cache = null;
      }
