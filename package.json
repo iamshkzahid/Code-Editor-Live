@@ -4,7 +4,7 @@
   "description": "A browser-based HTML, CSS, and JavaScript editor built for quick experiments, learning, and live preview—no setup required.",
   "main": "script.js",
   "scripts": {
-    "test": "node --test utils.test.js script.test.js"
+    "test": "node --test *.test.js"
   },
   "repository": {
     "type": "git",
