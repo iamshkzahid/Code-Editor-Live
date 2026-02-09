@@ -73,16 +73,20 @@ class MockEditor {
     constructor(id) {
         this.id = id;
         this._value = '';
+        this.initialConfig = {};
+        this.options = {};
+        this.wrapMode = false;
+        this.commandsList = [];
         this.session = {
-            setUseWrapMode: () => {}
+            setUseWrapMode: (val) => { this.wrapMode = val; }
         };
         this.commands = {
-            addCommand: () => {}
+            addCommand: (cmd) => { this.commandsList.push(cmd); }
         };
         this._listeners = {};
     }
 
-    setOptions() {}
+    setOptions(opts) { Object.assign(this.options, opts); }
     setValue(val) { this._value = val; }
     getValue() { return this._value; }
     setTheme() {}
@@ -328,5 +332,58 @@ describe('script.js - buildwebSrcdoc (Edge Cases)', () => {
         // Assertions
         assert.ok(result.includes('<!DOCTYPE html>'), 'Should generate valid HTML even if testArea is missing');
         assert.ok(!result.includes('/* tests */'), 'Should not try to include tests if testArea is missing');
+    });
+});
+
+describe('script.js - makeEditor', () => {
+
+    test('should configure editor with correct defaults', () => {
+        // Create a new editor using makeEditor
+        const editor = vm.runInContext('makeEditor("test_editor", "ace/mode/javascript")', context);
+
+        // Check initial config passed to ace.edit
+        assert.strictEqual(editor.id, 'test_editor');
+        assert.strictEqual(editor.initialConfig.theme, 'ace/theme/dracula');
+        assert.strictEqual(editor.initialConfig.mode, 'ace/mode/javascript');
+        assert.strictEqual(editor.initialConfig.tabSize, 2);
+        assert.strictEqual(editor.initialConfig.useSoftTabs, true);
+        assert.strictEqual(editor.initialConfig.showPrintMargin, false);
+        assert.strictEqual(editor.initialConfig.wrap, true);
+        assert.strictEqual(editor.initialConfig.fontSize, '17px');
+    });
+
+    test('should enable autocompletion options', () => {
+        const editor = vm.runInContext('makeEditor("test_editor_opts", "ace/mode/css")', context);
+
+        // Check options set via setOptions
+        assert.strictEqual(editor.options.enableBasicAutocompletion, true);
+        assert.strictEqual(editor.options.enableLiveAutocompletion, true);
+        assert.strictEqual(editor.options.enableSnippets, true);
+    });
+
+    test('should enable wrap mode on session', () => {
+        const editor = vm.runInContext('makeEditor("test_editor_wrap", "ace/mode/html")', context);
+
+        // Check session wrap mode
+        assert.strictEqual(editor.wrapMode, true);
+    });
+
+    test('should register run and save commands', () => {
+        const editor = vm.runInContext('makeEditor("test_editor_cmds", "ace/mode/text")', context);
+
+        // Check registered commands
+        const cmdNames = editor.commandsList.map(c => c.name);
+        assert.ok(cmdNames.includes('run'), 'Should register run command');
+        assert.ok(cmdNames.includes('save'), 'Should register save command');
+
+        // Check key bindings for run command
+        const runCmd = editor.commandsList.find(c => c.name === 'run');
+        assert.strictEqual(runCmd.bindKey.win, 'Ctrl-Enter');
+        assert.strictEqual(runCmd.bindKey.mac, 'Command-Enter');
+
+        // Check key bindings for save command
+        const saveCmd = editor.commandsList.find(c => c.name === 'save');
+        assert.strictEqual(saveCmd.bindKey.win, 'Ctrl-S');
+        assert.strictEqual(saveCmd.bindKey.mac, 'Command-S');
     });
 });
