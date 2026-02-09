@@ -43,7 +43,12 @@ class MockElement {
     }
 
     appendChild(child) {
-        this.children.push(child);
+        if (child.tagName === 'DOCUMENT-FRAGMENT') {
+             this.children.push(...child.children);
+             child.children = [];
+        } else {
+             this.children.push(child);
+        }
     }
 
     setAttribute(name, value) {
@@ -133,6 +138,7 @@ const sandbox = {
             return [];
         },
         createElement: (tag) => new MockElement(tag),
+        createDocumentFragment: () => new MockElement('document-fragment'),
         getElementById: (id) => getMockElement('#' + id),
     },
     window: {
