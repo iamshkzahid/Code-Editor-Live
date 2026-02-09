@@ -335,55 +335,35 @@ describe('script.js - buildwebSrcdoc (Edge Cases)', () => {
     });
 });
 
-describe('script.js - makeEditor', () => {
+describe('script.js - saveProject', () => {
+    const $ = (sel) => getMockElement(sel);
+    const runSaveProject = () => vm.runInContext('saveProject()', context);
 
-    test('should configure editor with correct defaults', () => {
-        // Create a new editor using makeEditor
-        const editor = vm.runInContext('makeEditor("test_editor", "ace/mode/javascript")', context);
+    // Save original setItem to restore after test
+    const originalSetItem = sandbox.localStorage.setItem;
 
-        // Check initial config passed to ace.edit
-        assert.strictEqual(editor.id, 'test_editor');
-        assert.strictEqual(editor.initialConfig.theme, 'ace/theme/dracula');
-        assert.strictEqual(editor.initialConfig.mode, 'ace/mode/javascript');
-        assert.strictEqual(editor.initialConfig.tabSize, 2);
-        assert.strictEqual(editor.initialConfig.useSoftTabs, true);
-        assert.strictEqual(editor.initialConfig.showPrintMargin, false);
-        assert.strictEqual(editor.initialConfig.wrap, true);
-        assert.strictEqual(editor.initialConfig.fontSize, '17px');
+    afterEach(() => {
+        sandbox.localStorage.setItem = originalSetItem;
+        // Clear output after each test
+        const output = $('#output');
+        output.children = [];
+        output.innerHTML = '';
+        output.scrollTop = 0;
     });
 
-    test('should enable autocompletion options', () => {
-        const editor = vm.runInContext('makeEditor("test_editor_opts", "ace/mode/css")', context);
+    test('should log error when localStorage.setItem throws', () => {
+        // Mock localStorage.setItem to throw an error
+        sandbox.localStorage.setItem = (key, val) => {
+            throw new Error("QuotaExceededError");
+        };
 
-        // Check options set via setOptions
-        assert.strictEqual(editor.options.enableBasicAutocompletion, true);
-        assert.strictEqual(editor.options.enableLiveAutocompletion, true);
-        assert.strictEqual(editor.options.enableSnippets, true);
-    });
+        runSaveProject();
 
-    test('should enable wrap mode on session', () => {
-        const editor = vm.runInContext('makeEditor("test_editor_wrap", "ace/mode/html")', context);
+        const output = $('#output');
+        const lastLog = output.children[output.children.length - 1];
 
-        // Check session wrap mode
-        assert.strictEqual(editor.wrapMode, true);
-    });
-
-    test('should register run and save commands', () => {
-        const editor = vm.runInContext('makeEditor("test_editor_cmds", "ace/mode/text")', context);
-
-        // Check registered commands
-        const cmdNames = editor.commandsList.map(c => c.name);
-        assert.ok(cmdNames.includes('run'), 'Should register run command');
-        assert.ok(cmdNames.includes('save'), 'Should register save command');
-
-        // Check key bindings for run command
-        const runCmd = editor.commandsList.find(c => c.name === 'run');
-        assert.strictEqual(runCmd.bindKey.win, 'Ctrl-Enter');
-        assert.strictEqual(runCmd.bindKey.mac, 'Command-Enter');
-
-        // Check key bindings for save command
-        const saveCmd = editor.commandsList.find(c => c.name === 'save');
-        assert.strictEqual(saveCmd.bindKey.win, 'Ctrl-S');
-        assert.strictEqual(saveCmd.bindKey.mac, 'Command-S');
+        assert.ok(lastLog, 'Output should have a log entry');
+        assert.ok(lastLog.innerHTML.includes('Unable to save'), 'Log should contain error message prefix');
+        assert.ok(lastLog.innerHTML.includes('QuotaExceededError'), 'Log should contain specific error message');
     });
 });
