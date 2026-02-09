@@ -261,3 +261,36 @@ describe('script.js - buildwebSrcdoc', () => {
          assert.ok(result.includes('catch(e)'), 'JS should include catch block');
     });
 });
+
+describe('script.js - saveProject', () => {
+    const $ = (sel) => getMockElement(sel);
+    const runSaveProject = () => vm.runInContext('saveProject()', context);
+
+    // Save original setItem to restore after test
+    const originalSetItem = sandbox.localStorage.setItem;
+
+    afterEach(() => {
+        sandbox.localStorage.setItem = originalSetItem;
+        // Clear output after each test
+        const output = $('#output');
+        output.children = [];
+        output.innerHTML = '';
+        output.scrollTop = 0;
+    });
+
+    test('should log error when localStorage.setItem throws', () => {
+        // Mock localStorage.setItem to throw an error
+        sandbox.localStorage.setItem = (key, val) => {
+            throw new Error("QuotaExceededError");
+        };
+
+        runSaveProject();
+
+        const output = $('#output');
+        const lastLog = output.children[output.children.length - 1];
+
+        assert.ok(lastLog, 'Output should have a log entry');
+        assert.ok(lastLog.innerHTML.includes('Unable to save'), 'Log should contain error message prefix');
+        assert.ok(lastLog.innerHTML.includes('QuotaExceededError'), 'Log should contain specific error message');
+    });
+});
