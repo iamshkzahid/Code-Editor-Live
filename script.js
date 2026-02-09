@@ -3,6 +3,7 @@ const $ = s => document.querySelector(s);
 const $$ = s => Array.from(document.querySelectorAll(s));
 const out = $('#output');
 const preview = $("#preview");
+const testArea = $("#testArea");
 const STORAGE_PROJECT_KEY = "Zahid's-codelab-web";
 const STORAGE_THEME_KEY = "editorTheme";
 const STORAGE_FONT_SIZE_KEY = "editorFontSize";
@@ -203,7 +204,7 @@ function buildwebSrcdoc(withTests=false){
      const html = ed_html.getValue();
      const css = ed_css.getValue();
      const js = ed_js.getValue();
-     const tests = ($("#testArea")?.value || '').trim();
+     const tests = (testArea?.value || '').trim();
 
      return `
      <!DOCTYPE html>
