@@ -379,3 +379,93 @@ describe('script.js - saveProject', () => {
         assert.ok(lastLog.innerHTML.includes('QuotaExceededError'), 'Log should contain specific error message');
     });
 });
+
+describe('script.js - initProject', () => {
+    // Access variables and functions
+    const getEdHtml = () => vm.runInContext('ed_html', context);
+    const getEdCss = () => vm.runInContext('ed_css', context);
+    const getEdJs = () => vm.runInContext('ed_js', context);
+    const runInitProject = () => vm.runInContext('initProject()', context);
+    const getStorageKey = () => vm.runInContext('STORAGE_PROJECT_KEY', context);
+
+    // Helper to get element from registry
+    const $ = (sel) => getMockElement(sel);
+
+    // Helper to clear output log
+    const clearLog = () => {
+        const out = $('#output');
+        out.children = [];
+        out.innerHTML = '';
+    };
+
+    // Helper to get last log message
+    const getLastLogMessage = () => {
+        const out = $('#output');
+        if (out.children.length > 0) {
+             const lastChild = out.children[out.children.length - 1];
+             return lastChild.innerHTML;
+        }
+        return '';
+    };
+
+    beforeEach(() => {
+        // Clear storage
+        sandbox.localStorage.clear();
+        // Clear logs
+        clearLog();
+        // Reset editors to empty to ensure initProject fills them
+        getEdHtml().setValue('');
+        getEdCss().setValue('');
+        getEdJs().setValue('');
+    });
+
+    test('should load default content when storage is corrupted (invalid JSON)', () => {
+        const key = getStorageKey();
+        sandbox.localStorage.setItem(key, 'invalid-json-{');
+
+        runInitProject();
+
+        const htmlVal = getEdHtml().getValue();
+        const cssVal = getEdCss().getValue();
+        const jsVal = getEdJs().getValue();
+
+        assert.match(htmlVal, /Welcome to Code Editor/, 'HTML should contain default content');
+        assert.match(cssVal, /body\{font-family:system-ui/, 'CSS should contain default content');
+        assert.match(jsVal, /console\.log\('Hello from JavaScript!'\)/, 'JS should contain default content');
+
+        const logMsg = getLastLogMessage();
+        assert.match(logMsg, /Loaded default project \(fresh start\)/, 'Should log default load message');
+    });
+
+    test('should load default content when storage is empty', () => {
+        const key = getStorageKey();
+        // Storage is already cleared in beforeEach, so getItem returns null
+
+        runInitProject();
+
+        const htmlVal = getEdHtml().getValue();
+        assert.match(htmlVal, /Welcome to Code Editor/, 'HTML should contain default content');
+
+        const logMsg = getLastLogMessage();
+        assert.match(logMsg, /Loaded default project \(fresh start\)/, 'Should log default load message');
+    });
+
+    test('should load saved project when storage has valid data', () => {
+        const key = getStorageKey();
+        const savedProject = {
+            html: '<h1>Saved HTML</h1>',
+            css: 'body { color: blue; }',
+            js: 'console.log("Saved JS");'
+        };
+        sandbox.localStorage.setItem(key, JSON.stringify(savedProject));
+
+        runInitProject();
+
+        assert.strictEqual(getEdHtml().getValue(), savedProject.html, 'HTML should match saved content');
+        assert.strictEqual(getEdCss().getValue(), savedProject.css, 'CSS should match saved content');
+        assert.strictEqual(getEdJs().getValue(), savedProject.js, 'JS should match saved content');
+
+        const logMsg = getLastLogMessage();
+        assert.match(logMsg, /Web project loaded/, 'Should log project loaded message');
+    });
+});
