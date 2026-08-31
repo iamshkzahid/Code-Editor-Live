@@ -1,0 +1,81 @@
+/* ═══════════════════════════════════════════════════════
+   Code Editor Live V3.0 — Design Tokens
+   4px/8px grid. Typography-first. Color conveys state.
+   ═══════════════════════════════════════════════════════ */
+
+:root {
+  /* ── Surfaces (darkest → lightest) ── */
+  --surface-0: #0e1116;
+  --surface-1: #161b22;
+  --surface-2: #1c2128;
+  --surface-3: #21262d;
+  --surface-hover: #262c36;
+  --surface-active: #2d333b;
+
+  /* ── Text ── */
+  --text-primary: #e6edf3;
+  --text-secondary: #8b949e;
+  --text-tertiary: #6e7681;
+  --text-inverse: #0e1116;
+
+  /* ── Accent ── */
+  --accent: #58a6ff;
+  --accent-emphasis: #1f6feb;
+  --accent-subtle: rgba(56, 139, 253, 0.15);
+  --accent-glow: rgba(56, 139, 253, 0.20);
+
+  /* ── Semantic ── */
+  --error: #f85149;
+  --error-subtle: rgba(248, 81, 73, 0.15);
+  --warning: #d29922;
+  --warning-subtle: rgba(210, 153, 34, 0.15);
+  --success: #3fb950;
+  --success-subtle: rgba(63, 185, 80, 0.15);
+  --info: #58a6ff;
+  --info-subtle: rgba(88, 166, 255, 0.15);
+
+  /* ── Borders ── */
+  --border: #30363d;
+  --border-muted: #21262d;
+  --border-active: var(--accent);
+
+  /* ── Layout Dimensions ── */
+  --activity-bar-width: 48px;
+  --sidebar-width: 260px;
+  --panel-height: 240px;
+  --status-bar-height: 24px;
+  --tab-height: 36px;
+  --breadcrumb-height: 24px;
+  --splitter-size: 4px;
+
+  /* ── Spacing (4px grid) ── */
+  --sp-1: 4px;
+  --sp-2: 8px;
+  --sp-3: 12px;
+  --sp-4: 16px;
+  --sp-5: 20px;
+  --sp-6: 24px;
+  --sp-8: 32px;
+  --sp-12: 48px;
+
+  /* ── Border Radius ── */
+  --radius-sm: 2px;
+  --radius-md: 4px;
+  --radius-lg: 8px;
+  --radius-pill: 10px;
+  --radius-round: 50%;
+
+  /* ── Elevation ── */
+  --shadow-1: 0 1px 3px rgba(0, 0, 0, 0.3);
+  --shadow-2: 0 4px 12px rgba(0, 0, 0, 0.4);
+  --shadow-3: 0 8px 24px rgba(0, 0, 0, 0.5);
+
+  /* ── Typography ── */
+  --font-ui: 'Inter', system-ui, -apple-system, sans-serif;
+  --font-code: 'JetBrains Mono', 'Fira Code', 'Cascadia Code', 'Menlo', monospace;
+
+  /* ── Motion ── */
+  --transition-fast: 100ms ease-out;
+  --transition-normal: 150ms ease-out;
+  --transition-slow: 200ms ease-out;
+}

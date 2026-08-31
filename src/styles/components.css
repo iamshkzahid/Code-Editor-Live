@@ -1,0 +1,205 @@
+/* ═══════════════════════════════════════════════════════
+   Code Editor Live V3.0 — Problems Panel & Components
+   ═══════════════════════════════════════════════════════ */
+
+.problems-panel {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  min-height: 0;
+  overflow: hidden;
+}
+
+.problems-status {
+  flex-shrink: 0;
+  padding: var(--sp-2) var(--sp-3);
+  font-size: 12px;
+  color: var(--text-secondary);
+  border-bottom: 1px solid var(--border-muted);
+}
+
+.problems-list {
+  flex: 1;
+  overflow-y: auto;
+  min-height: 0;
+  padding: var(--sp-1);
+}
+
+.problem-group {
+  margin-bottom: var(--sp-2);
+}
+
+.problem-group-list {
+  display: flex;
+  flex-direction: column;
+}
+
+.problem-group-title {
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--text-tertiary);
+  padding: var(--sp-1) var(--sp-2);
+  margin: 0;
+}
+
+.problem-card {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-1);
+  padding: var(--sp-2) var(--sp-3);
+  margin: var(--sp-1) 0;
+  border: 1px solid var(--border-muted);
+  border-radius: var(--radius-md);
+  background: var(--surface-2);
+  cursor: default;
+  outline: none;
+  transition: border-color 100ms ease-out, transform 100ms ease-out, opacity 200ms ease-out;
+}
+
+.problem-card:hover {
+  border-color: var(--accent);
+  transform: translateY(-1px);
+}
+
+.problem-card:focus-visible,
+.problem-card.focused {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 2px var(--accent-subtle);
+}
+
+.problem-card.resolving {
+  opacity: 0;
+  pointer-events: none;
+}
+
+.problem-severity {
+  font-size: 10px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  width: fit-content;
+  padding: 1px 6px;
+  border-radius: var(--radius-pill);
+}
+
+.problem-severity-error {
+  background: var(--error-subtle);
+  color: var(--error);
+}
+
+.problem-severity-warning {
+  background: var(--warning-subtle);
+  color: var(--warning);
+}
+
+.problem-severity-info {
+  background: var(--info-subtle);
+  color: var(--info);
+}
+
+.problem-headline {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-primary);
+  margin: 0;
+  line-height: 1.4;
+}
+
+.problem-explanation,
+.problem-why,
+.problem-location {
+  font-size: 12px;
+  color: var(--text-secondary);
+  margin: 0;
+  line-height: 1.5;
+}
+
+.problem-why strong {
+  color: var(--text-primary);
+  font-weight: 600;
+}
+
+.problem-location {
+  font-family: var(--font-code);
+  font-size: 11px;
+  color: var(--text-tertiary);
+}
+
+.problem-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--sp-2);
+  margin-top: var(--sp-1);
+}
+
+.problem-action-primary {
+  padding: var(--sp-1) var(--sp-2);
+  font-size: 12px;
+  font-weight: 600;
+  background: var(--accent);
+  color: #fff;
+  border: none;
+  border-radius: var(--radius-md);
+  cursor: pointer;
+  transition: transform 100ms ease-out, opacity 100ms ease-out;
+}
+
+.problem-action-primary:hover {
+  opacity: 0.92;
+}
+
+.problem-action-primary:active {
+  transform: scale(0.98);
+}
+
+.problem-action-secondary {
+  padding: var(--sp-1) var(--sp-2);
+  font-size: 12px;
+  background: transparent;
+  color: var(--text-secondary);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  cursor: pointer;
+  transition: transform 100ms ease-out, color 100ms ease-out, border-color 100ms ease-out;
+}
+
+.problem-action-secondary:hover {
+  color: var(--text-primary);
+  border-color: var(--accent);
+}
+
+.problem-action-secondary:active {
+  transform: scale(0.98);
+}
+
+.problem-technical {
+  margin: var(--sp-1) 0 0;
+  padding: var(--sp-2);
+  font-family: var(--font-code);
+  font-size: 11px;
+  line-height: 1.5;
+  color: var(--text-secondary);
+  background: var(--surface-0);
+  border: 1px solid var(--border-muted);
+  border-radius: var(--radius-md);
+  white-space: pre-wrap;
+  word-break: break-word;
+  overflow-x: auto;
+}
+
+.problems-empty {
+  padding: var(--sp-4) var(--sp-3);
+  text-align: center;
+  font-size: 13px;
+  color: var(--text-secondary);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .problem-card,
+  .problem-action-primary,
+  .problem-action-secondary {
+    transition-duration: 0.01ms;
+  }
+}

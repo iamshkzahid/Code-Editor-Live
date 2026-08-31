@@ -1,0 +1,109 @@
+/* ═══════════════════════════════════════════════════════
+   Code Editor Live V3.0 — CodeMirror Overrides
+   ═══════════════════════════════════════════════════════ */
+
+.cm-editor {
+  height: 100%;
+  outline: none !important;
+  font-family: var(--font-code);
+  background: var(--surface-3) !important;
+}
+
+.cm-scroller {
+  font-family: var(--font-code) !important;
+  font-size: 13px;
+  line-height: 20px;
+  overflow: auto;
+}
+
+.cm-content {
+  caret-color: var(--accent) !important;
+  padding: var(--sp-2) 0;
+}
+
+.cm-cursor, .cm-dropCursor {
+  border-left: 2px solid var(--accent) !important;
+}
+
+.cm-focused .cm-cursor { display: block !important; }
+
+.cm-gutters {
+  background: var(--surface-3) !important;
+  border-right: 1px solid var(--border-muted) !important;
+  color: var(--text-tertiary);
+}
+
+.cm-activeLineGutter { 
+  background: var(--surface-hover) !important;
+  color: var(--text-secondary) !important;
+}
+
+.cm-activeLine { background: rgba(255, 255, 255, 0.03) !important; }
+
+.cm-selectionBackground { background: rgba(56, 139, 253, 0.2) !important; }
+.cm-focused .cm-selectionBackground { background: rgba(56, 139, 253, 0.3) !important; }
+
+.cm-matchingBracket {
+  background: rgba(56, 139, 253, 0.2) !important;
+  outline: 1px solid var(--accent) !important;
+}
+
+.cm-tooltip {
+  background: var(--surface-2) !important;
+  border: 1px solid var(--border) !important;
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-2);
+}
+
+.cm-tooltip-autocomplete {
+  min-width: 200px;
+}
+
+.cm-tooltip-autocomplete > ul > li {
+  padding: var(--sp-1) var(--sp-2);
+  color: var(--text-primary);
+}
+
+.cm-tooltip-autocomplete > ul > li[aria-selected] {
+  background: var(--accent-subtle) !important;
+  color: var(--text-primary);
+}
+
+.cm-panels { background: var(--surface-2) !important; }
+
+.cm-search { padding: var(--sp-2) !important; }
+
+.cm-search input {
+  background: var(--surface-0) !important;
+  border: 1px solid var(--border) !important;
+  color: var(--text-primary) !important;
+  border-radius: var(--radius-md);
+  padding: var(--sp-1) var(--sp-2);
+  outline: none;
+}
+
+.cm-search button {
+  background: var(--surface-active) !important;
+  border: 1px solid var(--border) !important;
+  color: var(--text-primary) !important;
+  border-radius: var(--radius-md);
+  padding: var(--sp-1) var(--sp-2);
+  cursor: pointer;
+}
+
+.cm-flash-line {
+  background: rgba(56, 139, 253, 0.18) !important;
+  animation: cm-flash-fade 1.2s ease-out forwards;
+}
+
+@keyframes cm-flash-fade {
+  0% { background: rgba(56, 139, 253, 0.28) !important; }
+  100% { background: transparent !important; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .cm-flash-line {
+    animation: none;
+    background: rgba(56, 139, 253, 0.18) !important;
+  }
+}
