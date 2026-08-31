@@ -7,6 +7,10 @@ import type { ConsoleController } from '../console/ConsoleController';
 import type { PreviewRecovery } from '../core/PreviewRecovery';
 import { IdentityVoice } from '../product/IdentityVoice';
 import type { DiagnosticEngine, DiagnosticInput } from '../core/DiagnosticEngine';
+import type { DebugReplay } from '../product/DebugReplay';
+import type { ConfidenceEngine } from '../product/ConfidenceEngine';
+import type { FlowEngine } from '../product/FlowEngine';
+import type { SourceMapResolver } from '../build/SourceMapResolver';
 
 export class SandboxController {
   private iframe: HTMLIFrameElement;
@@ -14,6 +18,10 @@ export class SandboxController {
   private console: ConsoleController;
   private previewRecovery: PreviewRecovery | null = null;
   private runtimeDiagnostics: DiagnosticEngine | null = null;
+  private replay: DebugReplay | null = null;
+  private confidence: ConfidenceEngine | null = null;
+  private flow: FlowEngine | null = null;
+  private sourceMaps: SourceMapResolver | null = null;
   private activePreviewNonce: string | null = null;
   private messageHandler: (e: MessageEvent) => void;
   private refreshHandler: () => void;
@@ -46,6 +54,23 @@ export class SandboxController {
             source: 'runtime',
           };
           this.runtimeDiagnostics?.ingest([runtimeInput]);
+          let replayFile = e.data.source as string | undefined;
+          let replayLine = e.data.line as number | undefined;
+          if (this.sourceMaps && replayFile && replayLine != null) {
+            const resolved = this.sourceMaps.resolveRuntime(replayFile, replayLine, e.data.col);
+            if (resolved.resolved && resolved.file.startsWith('/')) {
+              replayFile = resolved.file;
+              replayLine = resolved.line;
+            }
+          }
+          this.replay?.recordRuntimeError(replayFile, replayLine, e.data.message);
+          this.flow?.recordDebugging();
+          if (this.confidence) {
+            this.store.getState().setConfidence?.(this.confidence.evaluate({
+              diagnostics: this.store.getState().diagnostics,
+              buildState: 'error',
+            }));
+          }
           this.store.getState().setBuildState('error');
           this.store.getState().setBuildStatusText(
             IdentityVoice.buildStopped({
@@ -74,6 +99,22 @@ export class SandboxController {
 
   attachDiagnosticEngine(engine: DiagnosticEngine): void {
     this.runtimeDiagnostics = engine;
+  }
+
+  attachReplay(replay: DebugReplay): void {
+    this.replay = replay;
+  }
+
+  attachConfidenceEngine(engine: ConfidenceEngine): void {
+    this.confidence = engine;
+  }
+
+  attachFlow(flow: FlowEngine): void {
+    this.flow = flow;
+  }
+
+  attachSourceMapResolver(sourceMaps: SourceMapResolver): void {
+    this.sourceMaps = sourceMaps;
   }
 
   setPreviewUrl(url: string): void {

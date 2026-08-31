@@ -2,13 +2,19 @@
  * Code Editor Live V3.0 — Status Bar Controller
  */
 import type { IDEStore } from '../store/index';
+import type { PanelTab } from '../store/index';
 import type { EditorController } from '../editor/EditorController';
 import { IdentityVoice } from '../product/IdentityVoice';
+import type { FlowEngine } from '../product/FlowEngine';
 
 export class StatusBar {
+  private storeUnsubscribe: (() => void) | null = null;
+  private flowUnsubscribe: (() => void) | null = null;
+
   constructor(
     store: { getState: () => IDEStore; subscribe: (fn: () => void) => () => void },
-    _editor: EditorController
+    _editor: EditorController,
+    flow?: FlowEngine
   ) {
     const branchEl = document.getElementById('branch-name')!;
     const buildText = document.getElementById('build-text')!;
@@ -18,7 +24,7 @@ export class StatusBar {
     document.querySelectorAll('.panel-tab').forEach((tab) => {
       tab.addEventListener('click', () => {
         const panelName = (tab as HTMLElement).dataset.panel;
-        if (panelName) store.getState().setPanelTab(panelName as 'console' | 'problems' | 'tests');
+        if (panelName) store.getState().setPanelTab(panelName as PanelTab);
       });
     });
 
@@ -33,7 +39,8 @@ export class StatusBar {
       });
     });
 
-    store.subscribe(() => {
+    let lastStableStatus = buildText.textContent || 'Ready';
+    const render = () => {
       const s = store.getState();
 
       branchEl.textContent = s.branch;
@@ -48,7 +55,13 @@ export class StatusBar {
               ? 'error'
               : 'ready');
 
-      buildText.textContent = s.buildStatusText || 'Ready';
+      const suppressProgress = s.buildState === 'compiling' && flow?.shouldSuppressNonEssential();
+      if (!suppressProgress) {
+        buildText.textContent = s.buildStatusText || 'Ready';
+        if (s.buildState !== 'compiling') lastStableStatus = buildText.textContent;
+      } else {
+        buildText.textContent = lastStableStatus;
+      }
 
       if (previewStateEl) {
         if (s.previewMode === 'last_working') {
@@ -89,6 +102,17 @@ export class StatusBar {
         frame.style.maxWidth = widths[s.previewViewport];
         frame.style.margin = s.previewViewport === 'desktop' ? '0' : '0 auto';
       }
-    });
+    };
+
+    this.storeUnsubscribe = store.subscribe(render);
+    this.flowUnsubscribe = flow?.subscribe(render) ?? null;
+    render();
+  }
+
+  dispose(): void {
+    this.storeUnsubscribe?.();
+    this.storeUnsubscribe = null;
+    this.flowUnsubscribe?.();
+    this.flowUnsubscribe = null;
   }
 }

@@ -122,6 +122,14 @@ export class DiagnosticEngine implements IDisposable {
     this.flush();
   }
 
+  clearRuntimeDiagnostics(): void {
+    if (this.disposed) return;
+    for (const [hash, record] of this.records) {
+      if (record.source === 'runtime') this.records.delete(hash);
+    }
+    this.flush();
+  }
+
   getActive(): DiagnosticRecord[] {
     return [...this.records.values()].sort((a, b) => b.updatedAt - a.updatedAt);
   }

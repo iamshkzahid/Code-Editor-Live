@@ -8,10 +8,19 @@ import type { IDEStore } from '../store/index';
 import type { SandboxController } from '../sandbox/SandboxController';
 import { SourceMapResolver } from './SourceMapResolver';
 import type { VFSController } from '../vfs/VFSController';
+import { ConfidenceEngine } from '../product/ConfidenceEngine';
+import type { FlowEngine } from '../product/FlowEngine';
+import { DebugReplay } from '../product/DebugReplay';
 
 type StoreApi = {
   getState: () => IDEStore;
 };
+
+interface ExperienceEngines {
+  confidence?: ConfidenceEngine;
+  flow?: FlowEngine;
+  replay?: DebugReplay;
+}
 
 export class BuildController {
   private worker: WorkerSupervisor;
@@ -26,12 +35,16 @@ export class BuildController {
   private compileStartMs = 0;
   private previousErrorCount = 0;
   private sourceMaps = new SourceMapResolver();
+  private confidence: ConfidenceEngine;
+  private flow: FlowEngine | undefined;
+  private replay: DebugReplay | undefined;
 
   constructor(
     store: StoreApi,
     vfs: VFSController,
     sandbox: SandboxController,
-    boundary: PlatformErrorBoundary
+    boundary: PlatformErrorBoundary,
+    experience: ExperienceEngines = {}
   ) {
     this.store = store;
     this.vfs = vfs;
@@ -40,8 +53,12 @@ export class BuildController {
     this.worker = new WorkerSupervisor();
     this.preview = new PreviewRecovery();
     this.diagnostics = new DiagnosticEngine(store.getState());
+    this.confidence = experience.confidence ?? new ConfidenceEngine();
+    this.flow = experience.flow;
+    this.replay = experience.replay;
     sandbox.attachPreviewRecovery(this.preview);
     sandbox.attachDiagnosticEngine(this.diagnostics);
+    sandbox.attachSourceMapResolver?.(this.sourceMaps);
   }
 
   scheduleBuild(): void {
@@ -104,6 +121,10 @@ export class BuildController {
     this.sandbox.applyPreviewState();
 
     const primary = this.diagnostics.getPrimary();
+    this.flow?.recordDebugging();
+    this.replay?.recordBuildFailure(primary?.file, primary?.line, primary?.technicalMessage ?? 'a build error');
+    this.replay?.recordPreviewFrozen();
+    this.publishConfidence(performance.now() - this.compileStartMs, 'error');
     this.store.getState().setBuildState('error');
     this.store.getState().setPreviewMode(this.preview.getMode());
     this.store.getState().setBuildStatusText(
@@ -131,8 +152,10 @@ export class BuildController {
 
     const durationMs = performance.now() - this.compileStartMs;
     const resolvedCount = this.previousErrorCount;
+    const runtimeErrorCount = this.diagnostics.getActive().filter((record) => record.source === 'runtime').length;
 
     this.diagnostics.clearBuildDiagnostics();
+    this.diagnostics.clearRuntimeDiagnostics();
     if (result.warnings?.length) {
       this.diagnostics.ingest(
         result.warnings.map((w) => ({
@@ -149,7 +172,12 @@ export class BuildController {
       this.diagnostics.ingest([]);
     }
 
-    this.store.getState().setBuildState('ready');
+    const nextBuildState = 'ready' as const;
+    this.publishConfidence(durationMs, nextBuildState);
+    if (resolvedCount > 0 || runtimeErrorCount > 0) this.replay?.recordRecovery(durationMs);
+    else this.replay?.recordPreviewUpdated(durationMs);
+
+    this.store.getState().setBuildState(nextBuildState);
     this.store.getState().setPreviewMode('current');
     this.store.getState().setBuildStatusText(
       resolvedCount > 0
@@ -157,6 +185,16 @@ export class BuildController {
         : IdentityVoice.previewUpdated({ durationMs, stale: false })
     );
     this.previousErrorCount = 0;
+  }
+
+  private publishConfidence(durationMs: number, buildState: 'error' | 'ready'): void {
+    const setConfidence = this.store.getState().setConfidence;
+    if (!setConfidence) return;
+    setConfidence(this.confidence.evaluate({
+      diagnostics: this.store.getState().diagnostics,
+      buildState,
+      buildDurationMs: durationMs,
+    }));
   }
 
   dispose(): void {

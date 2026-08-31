@@ -38,7 +38,7 @@ export interface ExplainVoiceContext {
   confidence?: 'high' | 'medium' | 'low';
 }
 
-export type EmptySurface = 'console' | 'problems' | 'notifications' | 'replay' | 'preview';
+export type EmptySurface = 'console' | 'problems' | 'notifications' | 'replay' | 'preview' | 'confidence';
 
 export const IdentityVoice = {
   buildStopped(ctx: BuildFailedContext, mode: VerbosityMode = 'beginner'): string {
@@ -147,6 +147,8 @@ export const IdentityVoice = {
         return "You're all caught up.";
       case 'replay':
         return 'No story yet. Events appear as you build and edit.';
+      case 'confidence':
+        return 'Confidence appears after the first build.';
       case 'preview':
         return 'Preparing your preview…';
       default:

@@ -3,6 +3,7 @@
  * Central state management with workspace persistence.
  */
 import { createStore } from 'zustand/vanilla';
+import type { ConfidenceSummary } from '../product/ConfidenceEngine';
 
 // ── Types ──────────────────────────────────────────────
 
@@ -33,7 +34,7 @@ export interface GitFileStatus {
 }
 
 export type SidebarView = 'explorer' | 'search' | 'git' | 'learn' | 'ai';
-export type PanelTab = 'console' | 'problems' | 'tests';
+export type PanelTab = 'console' | 'problems' | 'tests' | 'confidence' | 'replay';
 export type BuildState = 'idle' | 'compiling' | 'ready' | 'error';
 export type PreviewMode = 'current' | 'last_working' | 'none';
 export type Viewport = 'desktop' | 'tablet' | 'mobile';
@@ -60,6 +61,7 @@ export interface IDEStore {
   buildState: BuildState;
   buildStatusText: string;
   diagnostics: Diagnostic[];
+  confidence: ConfidenceSummary | null;
 
   // ── Preview state (Phase 5A) ──
   previewMode: PreviewMode;
@@ -89,6 +91,7 @@ export interface IDEStore {
   setBuildState: (s: BuildState) => void;
   setBuildStatusText: (text: string) => void;
   setDiagnostics: (d: Diagnostic[]) => void;
+  setConfidence: (summary: ConfidenceSummary) => void;
   setPreviewMode: (mode: PreviewMode) => void;
   setBranch: (b: string) => void;
   setChangedFiles: (f: GitFileStatus[]) => void;
@@ -141,6 +144,7 @@ export const store = createStore<IDEStore>((set, get) => ({
   buildState: 'idle',
   buildStatusText: 'Ready',
   diagnostics: [],
+  confidence: null,
   previewMode: 'none',
   branch: 'main',
   changedFiles: [],
@@ -183,6 +187,7 @@ export const store = createStore<IDEStore>((set, get) => ({
   setBuildState: (s) => set({ buildState: s }),
   setBuildStatusText: (text) => set({ buildStatusText: text }),
   setDiagnostics: (d) => set({ diagnostics: d }),
+  setConfidence: (summary) => set({ confidence: summary }),
   setPreviewMode: (mode) => set({ previewMode: mode }),
   setBranch: (b) => set({ branch: b }),
   setChangedFiles: (f) => set({ changedFiles: f }),

@@ -27,6 +27,11 @@ import { LifecycleManager, attachBootGatedBuildListener } from './core/Lifecycle
 import { PlatformErrorBoundary } from './core/PlatformErrorBoundary';
 import { ProblemsPanel } from './console/ProblemsPanel';
 import { IdentityVoice } from './product/IdentityVoice';
+import { FlowEngine } from './product/FlowEngine';
+import { ConfidenceEngine } from './product/ConfidenceEngine';
+import { DebugReplay } from './product/DebugReplay';
+import { ConfidencePanel } from './console/ConfidencePanel';
+import { ReplayPanel } from './console/ReplayPanel';
 
 // ── Boot ──
 
@@ -34,6 +39,11 @@ async function boot(): Promise<void> {
   const t0 = performance.now();
   const lifecycle = new LifecycleManager();
   const boundary = new PlatformErrorBoundary();
+  const flow = new FlowEngine();
+  const confidence = new ConfidenceEngine();
+  const replay = new DebugReplay();
+  lifecycle.registerCleanup('flow', () => flow.dispose());
+  lifecycle.registerCleanup('replay', () => replay.dispose());
 
   // 1. Restore workspace state
   store.getState().restoreWorkspace();
@@ -52,14 +62,18 @@ async function boot(): Promise<void> {
   const fileExplorer = new FileExplorer(vfs, store, tabController);
   const activityBar = new ActivityBar(store);
   const splitController = new SplitController(store);
-  const statusBar = new StatusBar(store, editor);
+  const statusBar = new StatusBar(store, editor, flow);
+  lifecycle.registerCleanup('status-bar', () => statusBar.dispose());
   const consoleController = new ConsoleController(store);
   const commandPalette = new CommandPalette(store, vfs, tabController);
 
   // 5. Initialize Build pipeline (Phase 5A)
   const previewFrame = document.getElementById('preview-frame') as HTMLIFrameElement;
   const sandbox = new SandboxController(previewFrame, store, consoleController);
-  const buildController = new BuildController(store, vfs, sandbox, boundary);
+  const buildController = new BuildController(store, vfs, sandbox, boundary, { flow, confidence, replay });
+  sandbox.attachReplay(replay);
+  sandbox.attachConfidenceEngine(confidence);
+  sandbox.attachFlow(flow);
   lifecycle.register('build', buildController);
   lifecycle.registerCleanup('sandbox', () => sandbox.dispose());
 
@@ -74,6 +88,27 @@ async function boot(): Promise<void> {
     buildController.getSourceMapResolver()
   );
   lifecycle.registerCleanup('problems', () => problemsPanel.dispose());
+
+  const confidencePanel = new ConfidencePanel(document.getElementById('confidence-panel-root')!, store);
+  lifecycle.registerCleanup('confidence', () => confidencePanel.dispose());
+
+  const replayPanel = new ReplayPanel(
+    document.getElementById('replay-panel-root')!,
+    replay,
+    store,
+    editor,
+    tabController,
+    vfs
+  );
+  lifecycle.registerCleanup('replay-panel', () => replayPanel.dispose());
+
+  editor.onChange(() => {
+    flow.recordTyping();
+    replay.recordEdit(editor.getCurrentFile() ?? undefined);
+  });
+  cmHost.addEventListener('focusin', () => flow.recordReading());
+  cmHost.addEventListener('mousedown', () => flow.recordReading());
+  document.getElementById('search-input')?.addEventListener('input', () => flow.recordSearching());
 
   boundary.onError(({ subsystem, error }) => {
     console.error(`[Platform] ${subsystem} failed`, error);
@@ -116,7 +151,6 @@ async function boot(): Promise<void> {
     if (mod && e.key === 's') {
       e.preventDefault();
       tabController.saveActive(vfs);
-      void buildController.runBuild();
     }
     if (mod && e.key === 'b') { e.preventDefault(); store.getState().toggleSidebar(); }
     if (mod && e.key === 'j') { e.preventDefault(); store.getState().togglePanel(); }
