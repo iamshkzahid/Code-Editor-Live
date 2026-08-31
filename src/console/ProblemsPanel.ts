@@ -9,6 +9,7 @@ import type { IDEStore } from '../store/index';
 import type { SourceMapResolver } from '../build/SourceMapResolver';
 import { explainDiagnostic, groupByFile } from '../product/Explainability';
 import { IdentityVoice } from '../product/IdentityVoice';
+import type { FlowEngine } from '../product/FlowEngine';
 
 type StoreApi = {
   getState: () => IDEStore;
@@ -25,6 +26,8 @@ export class ProblemsPanel {
   private tabs: TabController;
   private vfs: VFSController;
   private sourceMaps: SourceMapResolver;
+  private flow: FlowEngine | undefined;
+  private renderQueued = false;
   private orderedIds: string[] = [];
   private focusIndex = -1;
   private expandedIds = new Set<string>();
@@ -42,7 +45,8 @@ export class ProblemsPanel {
     editor: EditorController,
     tabs: TabController,
     vfs: VFSController,
-    sourceMaps: SourceMapResolver
+    sourceMaps: SourceMapResolver,
+    flow?: FlowEngine
   ) {
     this.root = root;
     this.engine = engine;
@@ -51,6 +55,7 @@ export class ProblemsPanel {
     this.tabs = tabs;
     this.vfs = vfs;
     this.sourceMaps = sourceMaps;
+    this.flow = flow;
 
     this.root.setAttribute('role', 'region');
     this.root.setAttribute('aria-label', 'Problems');
@@ -74,16 +79,27 @@ export class ProblemsPanel {
     document.addEventListener('keydown', this.keyHandler);
 
     this.engineUnsubscribe = engine.subscribe(() => {
-      if (!this.disposed) void this.render();
+      this.requestRender();
     });
 
     this.storeUnsubscribe = store.subscribe(() => {
-      if (!this.disposed && store.getState().panelTab === 'problems') {
-        void this.render();
-      }
+      if (store.getState().panelTab === 'problems') this.requestRender();
     });
 
     void this.render();
+  }
+
+  private requestRender(): void {
+    if (this.disposed || this.renderQueued) return;
+    if (!this.flow?.shouldSuppressNonEssential() || this.flow.isCritical()) {
+      void this.render();
+      return;
+    }
+    this.renderQueued = true;
+    this.flow.deferNonCritical(() => {
+      this.renderQueued = false;
+      if (!this.disposed) void this.render();
+    });
   }
 
   private getActiveFile(): string | null {

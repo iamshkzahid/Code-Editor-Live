@@ -53,7 +53,7 @@ export class SandboxController {
             stack: e.data.stack,
             source: 'runtime',
           };
-          this.runtimeDiagnostics?.ingest([runtimeInput]);
+          this.flow?.recordDebugging();
           let replayFile = e.data.source as string | undefined;
           let replayLine = e.data.line as number | undefined;
           if (this.sourceMaps && replayFile && replayLine != null) {
@@ -63,21 +63,19 @@ export class SandboxController {
               replayLine = resolved.line;
             }
           }
-          this.replay?.recordRuntimeError(replayFile, replayLine, e.data.message);
-          this.flow?.recordDebugging();
-          if (this.confidence) {
-            this.store.getState().setConfidence?.(this.confidence.evaluate({
-              diagnostics: this.store.getState().diagnostics,
-              buildState: 'error',
-            }));
-          }
-          this.store.getState().setBuildState('error');
-          this.store.getState().setBuildStatusText(
-            IdentityVoice.buildStopped({
-              errorCount: 1,
-              technicalSummary: e.data.message,
-            })
-          );
+          const applyRuntimeFailure = () => {
+            this.runtimeDiagnostics?.ingest([runtimeInput]);
+            this.replay?.recordRuntimeError(replayFile, replayLine, e.data.message);
+            if (this.confidence) {
+              this.store.getState().setConfidence?.(this.confidence.evaluate({
+                diagnostics: this.store.getState().diagnostics,
+                buildState: this.store.getState().buildState === 'ready' ? 'ready' : 'error',
+              }));
+            }
+            this.store.getState().setBuildStatusText(IdentityVoice.previewRuntimeError());
+          };
+          if (this.flow) this.flow.runCritical(applyRuntimeFailure);
+          else applyRuntimeFailure();
           break;
         }
         default:

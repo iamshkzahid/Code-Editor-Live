@@ -85,11 +85,12 @@ async function boot(): Promise<void> {
     editor,
     tabController,
     vfs,
-    buildController.getSourceMapResolver()
+    buildController.getSourceMapResolver(),
+    flow
   );
   lifecycle.registerCleanup('problems', () => problemsPanel.dispose());
 
-  const confidencePanel = new ConfidencePanel(document.getElementById('confidence-panel-root')!, store);
+  const confidencePanel = new ConfidencePanel(document.getElementById('confidence-panel-root')!, store, flow);
   lifecycle.registerCleanup('confidence', () => confidencePanel.dispose());
 
   const replayPanel = new ReplayPanel(
@@ -98,13 +99,14 @@ async function boot(): Promise<void> {
     store,
     editor,
     tabController,
-    vfs
+    vfs,
+    flow
   );
   lifecycle.registerCleanup('replay-panel', () => replayPanel.dispose());
 
   editor.onChange(() => {
     flow.recordTyping();
-    replay.recordEdit(editor.getCurrentFile() ?? undefined);
+    flow.deferNonCritical(() => replay.recordEdit(editor.getCurrentFile() ?? undefined));
   });
   cmHost.addEventListener('focusin', () => flow.recordReading());
   cmHost.addEventListener('mousedown', () => flow.recordReading());

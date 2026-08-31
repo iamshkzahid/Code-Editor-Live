@@ -3,6 +3,7 @@ import { ConfidenceEngine } from '../src/product/ConfidenceEngine';
 import { DebugReplay } from '../src/product/DebugReplay';
 import { FlowEngine } from '../src/product/FlowEngine';
 import { DiagnosticEngine } from '../src/core/DiagnosticEngine';
+import { normalizeCompilerMessage } from '../src/worker/compiler.worker';
 
 describe('FlowEngine', () => {
   afterEach(() => {
@@ -84,6 +85,27 @@ describe('ConfidenceEngine', () => {
     expect(summary.primaryIssue).toBeNull();
   });
 
+  it('keeps confidence tied to the latest authoritative state', () => {
+    const engine = new ConfidenceEngine();
+    const initial = engine.evaluate({ buildState: 'idle', diagnostics: [] });
+    const buildSuccess = engine.evaluate({ buildState: 'ready', diagnostics: [] });
+    const compilerFailure = engine.evaluate({
+      buildState: 'error',
+      diagnostics: [{ severity: 'error', source: 'esbuild', message: 'Missing export' }],
+    });
+    const runtimeFailure = engine.evaluate({
+      buildState: 'ready',
+      diagnostics: [{ severity: 'error', source: 'runtime', message: 'Render failed' }],
+    });
+    const recovered = engine.evaluate({ buildState: 'ready', diagnostics: [] });
+
+    expect(initial.score).toBe(100);
+    expect(buildSuccess.score).toBe(100);
+    expect(compilerFailure.score).toBeLessThan(runtimeFailure.score);
+    expect(runtimeFailure.evidence.some((item) => item.label === 'build failure')).toBe(false);
+    expect(recovered.score).toBe(100);
+  });
+
   it('treats runtime evidence separately from a compiler build failure', () => {
     const summary = new ConfidenceEngine().evaluate({
       buildState: 'error',
@@ -102,6 +124,40 @@ describe('Runtime recovery diagnostics', () => {
     engine.clearRuntimeDiagnostics();
     expect(collected.at(-1)).toEqual([]);
     engine.dispose();
+  });
+
+  it('retains warnings alongside errors for the same failed build', () => {
+    let current: Array<{ severity: string; message: string }> = [];
+    const engine = new DiagnosticEngine({ setDiagnostics: (items) => { current = items; } });
+    engine.replaceAll([
+      { severity: 'error', message: 'Syntax error', source: 'esbuild', buildGeneration: 4 },
+      { severity: 'warning', message: 'Unused import', source: 'esbuild', buildGeneration: 4 },
+    ]);
+    expect(current.map(({ severity, message }) => ({ severity, message }))).toEqual([
+      { severity: 'error', message: 'Syntax error' },
+      { severity: 'warning', message: 'Unused import' },
+    ]);
+    engine.dispose();
+  });
+});
+
+describe('Compiler diagnostic boundary', () => {
+  it('preserves valid locations and normalizes VFS paths', () => {
+    expect(normalizeCompilerMessage({
+      text: 'Unexpected token',
+      location: { file: './main.jsx', line: 2, column: 62 },
+    })).toEqual({
+      text: 'Unexpected token',
+      location: { file: '/main.jsx', line: 2, column: 62 },
+    });
+  });
+
+  it('keeps missing and invalid locations unknown', () => {
+    expect(normalizeCompilerMessage({ text: 'No location' })).toEqual({ text: 'No location' });
+    expect(normalizeCompilerMessage({
+      text: 'Invalid location',
+      location: { file: '<stdin>', line: 0, column: -1 },
+    })).toEqual({ text: 'Invalid location' });
   });
 });
 

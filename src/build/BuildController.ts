@@ -85,7 +85,7 @@ export class BuildController {
       }
 
       if (result.errors.length > 0) {
-        this.handleBuildFailure(result.errors, generation);
+        this.handleBuildFailure(result.errors, result.warnings, generation);
         return;
       }
 
@@ -102,6 +102,7 @@ export class BuildController {
 
   private handleBuildFailure(
     errors: Array<{ text: string; location?: { file: string; line: number; column: number } }>,
+    warnings: Array<{ text: string; location?: { file: string; line: number; column: number } }>,
     generation: number
   ): void {
     if (generation !== this.buildGeneration) return;
@@ -116,26 +117,41 @@ export class BuildController {
       buildGeneration: generation,
     }));
 
-    this.diagnostics.replaceAll(inputs);
-    this.preview.freezeOnFailure();
-    this.sandbox.applyPreviewState();
-
-    const primary = this.diagnostics.getPrimary();
     this.flow?.recordDebugging();
-    this.replay?.recordBuildFailure(primary?.file, primary?.line, primary?.technicalMessage ?? 'a build error');
-    this.replay?.recordPreviewFrozen();
-    this.publishConfidence(performance.now() - this.compileStartMs, 'error');
-    this.store.getState().setBuildState('error');
-    this.store.getState().setPreviewMode(this.preview.getMode());
-    this.store.getState().setBuildStatusText(
-      IdentityVoice.buildStopped({
-        primaryFile: primary?.file,
-        primaryLine: primary?.line,
-        errorCount: errors.length,
-        technicalSummary: primary?.technicalMessage,
-      })
-    );
-    this.previousErrorCount = errors.length;
+    const applyFailure = () => {
+      this.diagnostics.replaceAll([
+        ...inputs,
+        ...warnings.map((warning) => ({
+          severity: 'warning' as const,
+          message: warning.text,
+          file: warning.location?.file,
+          line: warning.location?.line,
+          col: warning.location?.column,
+          source: 'esbuild' as const,
+          buildGeneration: generation,
+        })),
+      ]);
+      this.preview.freezeOnFailure();
+      this.sandbox.applyPreviewState();
+
+      const primary = this.diagnostics.getPrimary();
+      this.replay?.recordBuildFailure(primary?.file, primary?.line, primary?.technicalMessage ?? 'a build error');
+      this.replay?.recordPreviewFrozen();
+      this.publishConfidence(performance.now() - this.compileStartMs, 'error');
+      this.store.getState().setBuildState('error');
+      this.store.getState().setPreviewMode(this.preview.getMode());
+      this.store.getState().setBuildStatusText(
+        IdentityVoice.buildStopped({
+          primaryFile: primary?.file,
+          primaryLine: primary?.line,
+          errorCount: errors.length,
+          technicalSummary: primary?.technicalMessage,
+        })
+      );
+      this.previousErrorCount = errors.length;
+    };
+    if (this.flow) this.flow.runCritical(applyFailure);
+    else applyFailure();
   }
 
   private async handleBuildSuccess(
@@ -174,14 +190,19 @@ export class BuildController {
 
     const nextBuildState = 'ready' as const;
     this.publishConfidence(durationMs, nextBuildState);
-    if (resolvedCount > 0 || runtimeErrorCount > 0) this.replay?.recordRecovery(durationMs);
-    else this.replay?.recordPreviewUpdated(durationMs);
+    const recordOutcome = () => {
+      if (resolvedCount > 0 || runtimeErrorCount > 0) this.replay?.recordRecovery(durationMs);
+      else this.replay?.recordPreviewUpdated(durationMs);
+    };
+    if (resolvedCount > 0 || runtimeErrorCount > 0) this.flow?.runCritical(recordOutcome);
+    else if (this.flow) this.flow.deferNonCritical(recordOutcome);
+    else recordOutcome();
 
     this.store.getState().setBuildState(nextBuildState);
     this.store.getState().setPreviewMode('current');
     this.store.getState().setBuildStatusText(
-      resolvedCount > 0
-        ? IdentityVoice.recovered({ durationMs, issuesResolved: resolvedCount })
+      resolvedCount > 0 || runtimeErrorCount > 0
+        ? IdentityVoice.recovered({ durationMs, issuesResolved: resolvedCount + runtimeErrorCount })
         : IdentityVoice.previewUpdated({ durationMs, stale: false })
     );
     this.previousErrorCount = 0;

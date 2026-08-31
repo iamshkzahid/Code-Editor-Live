@@ -25,6 +25,52 @@ export function resolveExternalModule(specifier: string): { path: string; extern
   };
 }
 
+interface CompilerLocation {
+  file?: unknown;
+  line?: unknown;
+  column?: unknown;
+}
+
+interface CompilerMessage {
+  text: string;
+  location?: { file: string; line: number; column: number };
+}
+
+function normalizeVfsPath(file: unknown): string | undefined {
+  if (typeof file !== 'string' || file.trim() === '') return undefined;
+  const normalized = file.trim().replace(/\\/g, '/').replace(/^\.\//, '');
+  if (!normalized || normalized.startsWith('<') || /^[a-z][a-z\d+.-]*:/i.test(normalized)) return undefined;
+  return `/${normalized.replace(/^\/+/, '').replace(/\/+/g, '/')}`;
+}
+
+function normalizeLocation(location: unknown): CompilerMessage['location'] {
+  if (!location || typeof location !== 'object') return undefined;
+  const value = location as CompilerLocation;
+  const file = normalizeVfsPath(value.file);
+  const line = typeof value.line === 'number' && Number.isInteger(value.line) && value.line > 0
+    ? value.line
+    : undefined;
+  const column = typeof value.column === 'number' && Number.isInteger(value.column) && value.column >= 0
+    ? value.column
+    : undefined;
+  if (!file || line == null || column == null) return undefined;
+  return { file, line, column };
+}
+
+export function normalizeCompilerMessage(message: unknown): CompilerMessage {
+  if (!message || typeof message !== 'object') return { text: String(message ?? 'Compiler error') };
+  const value = message as { text?: unknown; location?: unknown };
+  const location = normalizeLocation(value.location);
+  return {
+    text: typeof value.text === 'string' ? value.text : String(value.text ?? 'Compiler error'),
+    ...(location ? { location } : {}),
+  };
+}
+
+function normalizeCompilerMessages(messages: unknown): CompilerMessage[] {
+  return Array.isArray(messages) ? messages.map(normalizeCompilerMessage) : [];
+}
+
 // VFS Plugin: resolve imports against in-memory file tree
 function vfsPlugin(files: Record<string, string>): esbuild.Plugin {
   return {
@@ -153,21 +199,24 @@ if (typeof self !== 'undefined') self.onmessage = async (e: MessageEvent) => {
         }
       }
 
-      const errors = (result.errors ?? []).map((e) => ({
-        text: e.text,
-        location: e.location ? { file: e.location.file, line: e.location.line, column: e.location.column } : undefined,
-      }));
-
-      const warnings = (result.warnings ?? []).map((w) => ({
-        text: w.text,
-        location: w.location ? { file: w.location.file, line: w.location.line, column: w.location.column } : undefined,
-      }));
+      const errors = normalizeCompilerMessages(result.errors);
+      const warnings = normalizeCompilerMessages(result.warnings);
 
       self.postMessage({ type: 'BUILD_RESULT', id, errors, warnings, outputJS, outputCSS, sourceMapJson });
 
     } catch (err: unknown) {
-      const msg = err instanceof Error ? err.message : String(err);
-      self.postMessage({ type: 'BUILD_RESULT', id, errors: [{ text: msg }], outputJS: '', outputCSS: '' });
+      const failure = err as { message?: unknown; errors?: unknown; warnings?: unknown };
+      const errors = normalizeCompilerMessages(failure.errors);
+      const warnings = normalizeCompilerMessages(failure.warnings);
+      const message = err instanceof Error ? err.message : String(err);
+      self.postMessage({
+        type: 'BUILD_RESULT',
+        id,
+        errors: errors.length > 0 ? errors : [{ text: message }],
+        warnings,
+        outputJS: '',
+        outputCSS: '',
+      });
     }
   }
 };

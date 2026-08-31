@@ -1,6 +1,7 @@
 import type { IDEStore } from '../store/index';
 import type { ConfidenceSummary } from '../product/ConfidenceEngine';
 import { IdentityVoice } from '../product/IdentityVoice';
+import type { FlowEngine } from '../product/FlowEngine';
 
 type StoreApi = {
   getState: () => IDEStore;
@@ -10,15 +11,33 @@ type StoreApi = {
 export class ConfidencePanel {
   private root: HTMLElement;
   private unsubscribe: (() => void) | null = null;
+  private flow: FlowEngine | undefined;
+  private renderQueued = false;
+  private pendingSummary: ConfidenceSummary | null = null;
 
-  constructor(root: HTMLElement, store: StoreApi) {
+  constructor(root: HTMLElement, store: StoreApi, flow?: FlowEngine) {
     this.root = root;
+    this.flow = flow;
     this.root.className = 'confidence-panel';
     this.root.setAttribute('role', 'region');
     this.root.setAttribute('aria-label', 'Project Confidence');
     this.root.setAttribute('aria-live', 'polite');
-    this.unsubscribe = store.subscribe(() => this.render(store.getState().confidence));
+    this.unsubscribe = store.subscribe(() => this.requestRender(store.getState().confidence));
     this.render(store.getState().confidence);
+  }
+
+  private requestRender(summary: ConfidenceSummary | null): void {
+    this.pendingSummary = summary;
+    if (this.renderQueued) return;
+    if (!this.flow?.shouldSuppressNonEssential() || this.flow.isCritical()) {
+      this.render(summary);
+      return;
+    }
+    this.renderQueued = true;
+    this.flow.deferNonCritical(() => {
+      this.renderQueued = false;
+      this.render(this.pendingSummary);
+    });
   }
 
   private render(summary: ConfidenceSummary | null): void {
@@ -56,6 +75,7 @@ export class ConfidencePanel {
 
     const evidence = document.createElement('div');
     evidence.className = 'confidence-evidence';
+    evidence.setAttribute('role', 'group');
     evidence.setAttribute('aria-label', 'Confidence evidence');
     for (const item of summary.evidence) {
       const row = document.createElement('div');

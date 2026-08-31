@@ -4,6 +4,7 @@ import { resolveNextAction } from '../src/product/NextAction';
 import { DiagnosticEngine, type DiagnosticRecord } from '../src/core/DiagnosticEngine';
 import { SourceMapResolver } from '../src/build/SourceMapResolver';
 import { IdentityVoice } from '../src/product/IdentityVoice';
+import { FlowEngine } from '../src/product/FlowEngine';
 
 function record(overrides: Partial<DiagnosticRecord> & { message: string }): DiagnosticRecord {
   return {
@@ -277,6 +278,46 @@ describe('ProblemsPanel keyboard and navigation', () => {
     expect(() => panel.dispose()).not.toThrow();
   });
 
+  it('defers live diagnostic rendering while the editor is active', async () => {
+    vi.useFakeTimers();
+    const { ProblemsPanel } = await import('../src/console/ProblemsPanel');
+    const root = document.createElement('div');
+    const flow = new FlowEngine();
+    const diagnostics: DiagnosticRecord[] = [];
+    let notifyEngine: (() => void) | null = null;
+    const engine = {
+      subscribe: (fn: () => void) => { notifyEngine = fn; return () => {}; },
+      getBuildGeneration: () => 1,
+      getOrdered: () => diagnostics,
+      getById: (id: string) => diagnostics.find((d) => d.id === id),
+      dismiss: vi.fn(),
+    };
+    const panel = new ProblemsPanel(
+      root,
+      engine as never,
+      { getState: () => ({ panelVisible: true, panelTab: 'problems', openTabs: [], activeTabId: null }), subscribe: () => () => {} } as never,
+      { getCurrentFile: () => null, jumpToLine: vi.fn() } as never,
+      { openFile: vi.fn() } as never,
+      { fileExists: vi.fn(async () => true) } as never,
+      new SourceMapResolver(),
+      flow
+    );
+
+    diagnostics.push(record({ id: 'flow-diagnostic', message: 'Error', file: '/main.jsx', line: 2 }));
+    flow.recordTyping();
+    notifyEngine?.();
+    await Promise.resolve();
+    expect(root.querySelector('.problem-card')).toBeNull();
+
+    vi.advanceTimersByTime(2_000);
+    await Promise.resolve();
+    expect(root.querySelector('.problem-card')).toBeTruthy();
+
+    panel.dispose();
+    flow.dispose();
+    vi.useRealTimers();
+  });
+
   it('navigates to source on open action', async () => {
     const { ProblemsPanel } = await import('../src/console/ProblemsPanel');
     const root = document.createElement('div');
@@ -395,6 +436,41 @@ describe('workspace persistence', () => {
 });
 
 describe('Sandbox message authenticity', () => {
+  it('keeps runtime failures distinct from successful build state', async () => {
+    const { SandboxController } = await import('../src/sandbox/SandboxController');
+    const iframe = document.createElement('iframe');
+    document.body.appendChild(iframe);
+    let buildState = 'ready';
+    let status = '';
+    const store = {
+      getState: () => ({
+        buildState,
+        setBuildState: (next: string) => { buildState = next; },
+        setBuildStatusText: (next: string) => { status = next; },
+        setPreviewMode: vi.fn(),
+      }),
+    };
+    const sandbox = new SandboxController(iframe, store as never, { log: vi.fn() } as never);
+    sandbox.attachPreviewRecovery({ getSessionNonce: () => 'runtime-session' } as never);
+    sandbox.setPreviewUrl('blob:preview');
+
+    window.dispatchEvent(new MessageEvent('message', {
+      source: iframe.contentWindow,
+      data: {
+        type: 'RUNTIME_ERROR',
+        nonce: 'runtime-session',
+        message: 'Render failed',
+        source: '/main.jsx',
+        line: 2,
+        col: 1,
+      },
+    }));
+
+    expect(buildState).toBe('ready');
+    expect(status).toBe('Preview runtime error. Review the reported issue.');
+    sandbox.dispose();
+  });
+
   it('delivers the active preview through srcdoc', async () => {
     const { SandboxController } = await import('../src/sandbox/SandboxController');
     const iframe = document.createElement('iframe');

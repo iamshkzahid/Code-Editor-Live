@@ -4,6 +4,7 @@ import type { IDEStore } from '../store/index';
 import type { EditorController } from '../editor/EditorController';
 import type { TabController } from '../ui/TabController';
 import type { VFSController } from '../vfs/VFSController';
+import type { FlowEngine } from '../product/FlowEngine';
 
 type StoreApi = {
   getState: () => IDEStore;
@@ -18,6 +19,8 @@ export class ReplayPanel {
   private vfs: VFSController;
   private unsubscribe: (() => void) | null = null;
   private storeUnsubscribe: (() => void) | null = null;
+  private flow: FlowEngine | undefined;
+  private renderQueued = false;
   private clickHandler: (event: Event) => void;
 
   constructor(
@@ -26,23 +29,38 @@ export class ReplayPanel {
     store: StoreApi,
     editor: EditorController,
     tabs: TabController,
-    vfs: VFSController
+    vfs: VFSController,
+    flow?: FlowEngine
   ) {
     this.root = root;
     this.replay = replay;
     this.editor = editor;
     this.tabs = tabs;
     this.vfs = vfs;
+    this.flow = flow;
     this.root.className = 'replay-panel';
     this.root.setAttribute('role', 'region');
     this.root.setAttribute('aria-label', 'Debug Replay');
     this.clickHandler = (event) => this.handleClick(event);
     this.root.addEventListener('click', this.clickHandler);
-    this.unsubscribe = replay.subscribe(() => this.render());
+    this.unsubscribe = replay.subscribe(() => this.requestRender());
     this.storeUnsubscribe = store.subscribe(() => {
-      if (store.getState().panelTab === 'replay') this.render();
+      if (store.getState().panelTab === 'replay') this.requestRender();
     });
     this.render();
+  }
+
+  private requestRender(): void {
+    if (this.renderQueued) return;
+    if (!this.flow?.shouldSuppressNonEssential() || this.flow.isCritical()) {
+      this.render();
+      return;
+    }
+    this.renderQueued = true;
+    this.flow.deferNonCritical(() => {
+      this.renderQueued = false;
+      this.render();
+    });
   }
 
   private render(): void {

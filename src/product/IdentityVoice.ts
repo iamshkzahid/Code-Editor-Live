@@ -98,6 +98,10 @@ export const IdentityVoice = {
     return 'Large project. Previous preview may still be visible.';
   },
 
+  previewRuntimeError(): string {
+    return 'Preview runtime error. Review the reported issue.';
+  },
+
   problemFound(ctx: DiagnosticVoiceContext, mode: VerbosityMode = 'beginner'): string {
     if (mode === 'expert') {
       const loc = [ctx.file, ctx.line, ctx.col].filter((v) => v != null).join(':');

@@ -9,6 +9,7 @@ export class FlowEngine {
   private idleTimer: ReturnType<typeof setTimeout> | null = null;
   private listeners = new Set<FlowListener>();
   private queuedNonCritical: Array<() => void> = [];
+  private criticalDepth = 0;
 
   record(context: FlowContext): void {
     if (this.idleTimer) clearTimeout(this.idleTimer);
@@ -38,7 +39,7 @@ export class FlowEngine {
   getContext(): FlowContext { return this.context; }
 
   shouldSuppressNonEssential(): boolean {
-    return this.context !== 'idle';
+    return this.context !== 'idle' && this.criticalDepth === 0;
   }
 
   deferNonCritical(task: () => void): void {
@@ -47,8 +48,16 @@ export class FlowEngine {
   }
 
   runCritical(task: () => void): void {
-    task();
+    this.criticalDepth += 1;
+    try {
+      this.flushQueued(true);
+      task();
+    } finally {
+      this.criticalDepth -= 1;
+    }
   }
+
+  isCritical(): boolean { return this.criticalDepth > 0; }
 
   getQueuedCount(): number {
     return this.queuedNonCritical.length;
@@ -66,8 +75,8 @@ export class FlowEngine {
     this.listeners.clear();
   }
 
-  private flushQueued(): void {
-    if (this.shouldSuppressNonEssential() || this.queuedNonCritical.length === 0) return;
+  private flushQueued(force = false): void {
+    if ((!force && this.shouldSuppressNonEssential()) || this.queuedNonCritical.length === 0) return;
     const queued = this.queuedNonCritical.splice(0);
     for (const task of queued) task();
   }

@@ -88,6 +88,18 @@ describe('PreviewRecovery', () => {
     recovery.dispose();
     expect(revoke).toHaveBeenCalledTimes(1);
   });
+
+  it('revokes replaced preview URLs before retaining the latest build', () => {
+    const revoke = vi.spyOn(URL, 'revokeObjectURL');
+    const recovery = new PreviewRecovery();
+    const first = recovery.commitSuccess('', 'first', '');
+    const second = recovery.commitSuccess('', 'second', '');
+
+    expect(revoke).toHaveBeenCalledWith(first);
+    expect(recovery.getDisplayUrl()).toBe(second);
+    recovery.dispose();
+    expect(revoke).toHaveBeenCalledTimes(2);
+  });
 });
 
 describe('Compiler initialization', () => {

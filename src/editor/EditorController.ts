@@ -73,6 +73,8 @@ export class EditorController {
       }),
       parent: host,
     });
+    this.view.contentDOM.setAttribute('aria-label', 'Source editor');
+    this.view.scrollDOM.tabIndex = 0;
   }
 
   private buildExtensions(): Extension[] {
