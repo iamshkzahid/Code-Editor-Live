@@ -1,0 +1,10 @@
+<!DOCTYPE html>
+<html>
+<body>
+<script type="module">
+import FS from 'https://unpkg.com/@isomorphic-git/lightning-fs@4.6.0/src/index.js';
+const fs = new FS('test-fs');
+fs.promises.readdir('.').then(console.log).catch(e => console.error(e));
+</script>
+</body>
+</html>
